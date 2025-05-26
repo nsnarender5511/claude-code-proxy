@@ -13,7 +13,7 @@ A proxy server that lets you use Anthropic clients with Gemini or OpenAI models 
 
 - OpenAI API key 🔑
 - Google AI Studio (Gemini) API key (if using Google provider) 🔑
-- [uv](https://github.com/astral-sh/uv) installed.
+- [Poetry](https://python-poetry.org/) installed.
 
 ### Setup 🛠️
 
@@ -23,13 +23,15 @@ A proxy server that lets you use Anthropic clients with Gemini or OpenAI models 
    cd claude-code-openai
    ```
 
-2. **Install uv** (if you haven't already):
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-   *(`uv` will handle dependencies based on `pyproject.toml` when you run the server)*
+2. **Install Poetry** (if you haven't already):
+   Follow the instructions on the [official Poetry website](https://python-poetry.org/docs/#installation).
 
-3. **Configure Environment Variables**:
+3. **Install dependencies**:
+   ```bash
+   poetry install
+   ```
+
+4. **Configure Environment Variables**:
    Copy the example environment file:
    ```bash
    cp .env.example .env
@@ -49,9 +51,9 @@ A proxy server that lets you use Anthropic clients with Gemini or OpenAI models 
 
 4. **Run the server**:
    ```bash
-   uv run uvicorn server:app --host 0.0.0.0 --port 8082 --reload
+   poetry run python server.py
    ```
-   *(`--reload` is optional, for development)*
+   *You can also use `poetry run uvicorn server:app --host 0.0.0.0 --port 8082 --reload` for development with auto-reload.*
 
 ### Using with Claude Code 🎮
 
