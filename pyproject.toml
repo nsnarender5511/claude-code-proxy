@@ -10,5 +10,6 @@ dependencies = [
     "pydantic",
     "litellm",
     "python-dotenv",
+    "uvicorn (>=0.34.2,<0.35.0)",
 ]
 
