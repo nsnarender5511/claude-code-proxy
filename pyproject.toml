@@ -1,5 +1,5 @@
 [project]
-name = "anthropic-proxy"
+name = "claude-code-proxy"
 version = "0.1.0"
 description = "Proxy that translates between Anthropic API and LiteLLM"
 readme = "README.md"
@@ -11,4 +11,10 @@ dependencies = [
     "litellm",
     "python-dotenv",
 ]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0" # Or any other dev dependency
 
