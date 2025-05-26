@@ -1,4 +1,7 @@
 import sys
+import logging
+
+logger = logging.getLogger("api.request") 
 
 # Define ANSI color codes for terminal output
 class Colors:
@@ -40,7 +43,6 @@ def log_request_beautifully(method, path, claude_model, openai_model, num_messag
     log_line = f"{Colors.BOLD}{method} {endpoint}{Colors.RESET} {status_str}"
     model_line = f"{claude_display} → {openai_display} {tools_str} {messages_str}"
     
-    # Print to console
-    print(log_line)
-    print(model_line)
-    sys.stdout.flush()
+    # Log using the configured logger
+    logger.info(log_line)
+    logger.info(model_line)

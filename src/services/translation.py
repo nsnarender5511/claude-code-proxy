@@ -4,12 +4,12 @@ import uuid
 from typing import Any, Dict, List, Union, Optional # Added Optional for MessagesResponse
 
 # Models from app.api.models
-from app.api.models import (
+from src.api.models import (
     MessagesRequest, MessagesResponse, Usage, 
     ContentBlockText, ContentBlockToolUse, SystemContent # Added SystemContent
 )
 # Utilities
-from app.utils.gemini_schema import clean_gemini_schema
+from src.utils.gemini_schema import clean_gemini_schema
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,9 @@
-from app.core.config import OPENAI_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY
+from src.core.config import OPENAI_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY
 import logging
 
 logger = logging.getLogger(__name__)
 
 def get_api_key_for_model(model_name: str) -> str:
-    if model_name is None: # Added a check for None model_name
-        logger.warning("model_name is None, defaulting to Anthropic API key")
-        return ANTHROPIC_API_KEY
     if model_name.startswith("openai/"):
         logger.debug(f"Using OpenAI API key for model: {model_name}")
         return OPENAI_API_KEY

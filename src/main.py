@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Request
-from app.core.logging_config import setup_logging
-from app.api.endpoints import messages, token_counter # Routers
+from src.core.logging_config import setup_logging
+from src.api.endpoints import messages, token_counter # Routers
 import logging # For the middleware logger
+from src.core.config import PORT
 
 # Apply logging configuration
 setup_logging()
@@ -32,3 +33,21 @@ app.include_router(token_counter.router)
 @app.get("/")
 async def root():
     return {"message": "Anthropic Proxy for LiteLLM"}
+
+if __name__ == "__main__":
+    import uvicorn
+    import sys
+
+    # Note: The app instance is already defined above as 'app'
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--help":
+        print("To run the server for development (with auto-reload):")
+        print("  uvicorn src.main:app --reload --host 0.0.0.0 --port 8082")
+        print("\nTo run the server directly using this script:")
+        print("  python src/main.py")
+        sys.exit(0)
+    
+    port = PORT # Default port
+
+    print(f"Starting Uvicorn server on 0.0.0.0:{port}")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

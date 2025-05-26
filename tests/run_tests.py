@@ -7,10 +7,10 @@ with various scenarios including tool use, multi-turn conversations,
 and content blocks.
 
 Usage:
-  python tests.py                    # Run all tests
-  python tests.py --no-streaming     # Skip streaming tests
-  python tests.py --simple           # Run only simple tests
-  python tests.py --tools            # Run tool-related tests only
+  python tests/run_tests.py                    # Run all tests
+  python tests/run_tests.py --no-streaming     # Skip streaming tests
+  python tests/run_tests.py --simple           # Run only simple tests
+  python tests/run_tests.py --tools            # Run tool-related tests only
 """
 
 import os
@@ -450,7 +450,6 @@ async def stream_response(url, headers, data, stream_name):
     
     try:
         async with httpx.AsyncClient() as client:
-            # Add stream flag to ensure it's streamed
             request_data = data.copy()
             request_data["stream"] = True
             
@@ -459,60 +458,32 @@ async def stream_response(url, headers, data, stream_name):
                 if response.status_code != 200:
                     error_text = await response.aread()
                     stats.has_error = True
-                    stats.error_message = f"HTTP {response.status_code}: {error_text.decode('utf-8')}"
+                    stats.error_message = f"HTTP {response.status_code}: {error_text.decode('utf-8', errors='ignore')}"
                     error = stats.error_message
                     print(f"Error: {stats.error_message}")
                     return stats, error
                 
                 print(f"{stream_name} connected, receiving events...")
                 
-                # Process each chunk
-                buffer = ""
-                async for chunk in response.aiter_text():
-                    if not chunk.strip():
+                async for sse_event in response.aiter_sse():
+                    if not sse_event.data or sse_event.event == "ping": # Also skip ping events if they only contain type and no data field
+                        if sse_event.event == "ping" and not sse_event.data:
+                             logger.debug(f"Received ping event for {stream_name}") # Optional: log ping
                         continue
                     
-                    # Handle multiple events in one chunk
-                    buffer += chunk
-                    events = buffer.split("\n\n")
+                    if sse_event.data == "[DONE]": # Handle LiteLLM Proxy specific DONE marker
+                        logger.debug(f"Received [DONE] marker for {stream_name}")
+                        break 
                     
-                    # Process all complete events
-                    for event_text in events[:-1]:  # All but the last (possibly incomplete) event
-                        if not event_text.strip():
-                            continue
-                        
-                        # Parse server-sent event format
-                        if "data: " in event_text:
-                            # Extract the data part
-                            data_parts = []
-                            for line in event_text.split("\n"):
-                                if line.startswith("data: "):
-                                    data_part = line[len("data: "):]
-                                    # Skip the "[DONE]" marker
-                                    if data_part == "[DONE]":
-                                        break
-                                    data_parts.append(data_part)
-                            
-                            if data_parts:
-                                try:
-                                    event_data = json.loads("".join(data_parts))
-                                    stats.add_event(event_data)
-                                except json.JSONDecodeError as e:
-                                    print(f"Error parsing event: {e}\nRaw data: {''.join(data_parts)}")
-                    
-                    # Keep the last (potentially incomplete) event for the next iteration
-                    buffer = events[-1] if events else ""
-                    
-                # Process any remaining complete events in the buffer
-                if buffer.strip():
-                    lines = buffer.strip().split("\n")
-                    data_lines = [line[len("data: "):] for line in lines if line.startswith("data: ")]
-                    if data_lines and data_lines[0] != "[DONE]":
-                        try:
-                            event_data = json.loads("".join(data_lines))
-                            stats.add_event(event_data)
-                        except:
-                            pass
+                    try:
+                        event_data = json.loads(sse_event.data)
+                        stats.add_event(event_data)
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Error parsing SSE event data in {stream_name}: {e}\nRaw event: event='{sse_event.event}', data='{sse_event.data}'")
+                        # Optionally, log this as an error in stats if critical
+                        # stats.has_error = True
+                        # stats.error_message += f"JSONDecodeError: {sse_event.data}\n"
+                        continue # Skip malformed JSON data chunks
                 
             elapsed = time.time() - start_time
             print(f"{stream_name} stream completed in {elapsed:.2f} seconds")
@@ -563,7 +534,7 @@ def compare_stream_stats(anthropic_stats, proxy_stats):
     
     # Success as long as proxy has some content and no errors
     return (not proxy_stats.has_error and 
-            len(proxy_stats.text_content) > 0 or proxy_stats.has_tool_use)
+            (len(proxy_stats.text_content) > 0 or proxy_stats.has_tool_use))
 
 async def test_streaming(test_name, request_data):
     """Run a streaming test with the given request data."""
@@ -683,7 +654,7 @@ async def run_tests(args):
     passed = sum(1 for v in results.values() if v)
     
     for test, result in results.items():
-        print(f"{test}: {'✅ PASS' if result else '❌ FAIL'}")
+        print(f"{test}: { '✅ PASS' if result else '❌ FAIL'}")
     
     print(f"\nTotal: {passed}/{total} tests passed")
     
