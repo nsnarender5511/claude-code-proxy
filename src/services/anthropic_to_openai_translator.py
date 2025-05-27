@@ -39,60 +39,63 @@ def _translate_anthropic_messages_to_openai(
 
     for msg in anthropic_messages:
         if msg.role == "user":
-            openai_content_parts: List[Union[OpenAIMessageContentPartText, OpenAIMessageContentPartImage]] = []
-            is_tool_result_message = False
-
             if isinstance(msg.content, str):
-                openai_content_parts.append(OpenAIMessageContentPartText(type="text", text=msg.content))
+                # Simple case: content is a string
+                openai_messages.append(OpenAIChatMessageUser(role="user", content=msg.content))
             elif isinstance(msg.content, list):
+                # Temporary lists to hold parts for this specific Anthropic message
+                current_message_text_image_parts: List[Union[OpenAIMessageContentPartText, OpenAIMessageContentPartImage]] = []
+                current_message_tool_results: List[OpenAIChatMessageTool] = []
+
                 for block in msg.content:
                     if isinstance(block, AnthropicContentBlockText):
-                        openai_content_parts.append(OpenAIMessageContentPartText(type="text", text=block.text))
+                        current_message_text_image_parts.append(OpenAIMessageContentPartText(type="text", text=block.text))
                     elif isinstance(block, AnthropicContentBlockImage):
-                        media_type = block.source.media_type or "image/jpeg" # Default to jpeg if not specified
+                        media_type = block.source.media_type or "image/jpeg"
                         image_url = f"data:{media_type};base64,{block.source.data}"
-                        openai_content_parts.append(
+                        current_message_text_image_parts.append(
                             OpenAIMessageContentPartImage(
                                 type="image_url",
                                 image_url=OpenAIMessageContentPartImageURL(url=image_url)
                             )
                         )
                     elif isinstance(block, AnthropicContentBlockToolResult):
-                        # If a tool result is found, this message becomes an OpenAIChatMessageTool
-                        # As per requirements, other content blocks are ignored in this case for this message.
-                        tool_content = ""
+                        tool_content_str = ""
                         if isinstance(block.content, str):
-                            tool_content = block.content
-                        elif isinstance(block.content, list): # List of dicts
-                            tool_content = json.dumps(block.content)
-                        else: # Should be dict, but stringify defensively
-                            tool_content = json.dumps(block.content)
-                            
-                        openai_messages.append(
+                            tool_content_str = block.content
+                        elif isinstance(block.content, list) or isinstance(block.content, dict): # Handle list or dict
+                            tool_content_str = json.dumps(block.content)
+                        else: # Fallback for other types (e.g. bool, number)
+                            tool_content_str = str(block.content)
+                        
+                        current_message_tool_results.append(
                             OpenAIChatMessageTool(
                                 role="tool",
                                 tool_call_id=block.tool_use_id,
-                                content=tool_content
+                                content=tool_content_str
                             )
                         )
-                        is_tool_result_message = True
-                        break # Stop processing other blocks for this user message
-            
-            if not is_tool_result_message:
-                if not openai_content_parts: # Handle empty content if all blocks were filtered or none existed
-                    # OpenAI requires content for user messages if not a tool result.
-                    # Add an empty text part if nothing else is there. This might be an edge case.
-                    # Or, consider if this scenario should raise an error or be skipped.
-                    # For now, let's ensure 'content' is not empty for User role.
-                    # If it was an empty string initially, it would have become a text part.
-                    # This path means msg.content was an empty list or list with unhandled types.
-                    openai_messages.append(OpenAIChatMessageUser(role="user", content="")) # Or handle as error
-                elif len(openai_content_parts) == 1 and openai_content_parts[0].type == "text":
-                    # If only one text part, content is a simple string
-                    openai_messages.append(OpenAIChatMessageUser(role="user", content=openai_content_parts[0].text))
-                else:
-                    # Mixed content (text/image)
-                    openai_messages.append(OpenAIChatMessageUser(role="user", content=openai_content_parts))
+                
+                # After processing all blocks in the current Anthropic message:
+                # If there were any tool results, add them to the main openai_messages list.
+                if current_message_tool_results:
+                    openai_messages.extend(current_message_tool_results)
+                
+                # If there were any text or image parts, they form a single OpenAIChatMessageUser.
+                # This user message is added ONLY if there are text/image parts.
+                # If the Anthropic message ONLY contained tool results, this block will not execute.
+                if current_message_text_image_parts:
+                    if len(current_message_text_image_parts) == 1 and current_message_text_image_parts[0].type == "text":
+                        openai_messages.append(OpenAIChatMessageUser(role="user", content=current_message_text_image_parts[0].text))
+                    else:
+                        openai_messages.append(OpenAIChatMessageUser(role="user", content=current_message_text_image_parts))
+                # If the Anthropic message content was an empty list from the start,
+                # and thus no tool results or text/image parts were processed,
+                # create a user message with empty string content.
+                elif not msg.content and not current_message_tool_results and not current_message_text_image_parts: # Check if msg.content was originally empty list
+                     openai_messages.append(OpenAIChatMessageUser(role="user", content=""))
+            # Note: If msg.content is None or some other unexpected type, it won't be handled by above
+            # and no user message will be added. This assumes msg.content is always str or list as per AnthropicMessage model.
 
         elif msg.role == "assistant":
             assistant_text_content_parts: List[str] = []
