@@ -1,41 +1,63 @@
-import os
-from dotenv import load_dotenv
+from typing import Optional, Dict, List
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
-# Load environment variables from .env file
-load_dotenv()
+# Constants for internal translation keys for default provider models
+_DEFAULT_KEY_FOR_OPENAI_PROVIDER_MODEL = "anthropic/_internal_default_openai_provider_model"
+_DEFAULT_KEY_FOR_GEMINI_PROVIDER_MODEL = "anthropic/_internal_default_gemini_provider_model"
 
-# Get port from environment
-PORT = int(os.environ.get("PORT", 8080))
+class AnthropicModelInfo(BaseSettings):
+    description: str = ""
+    # Future fields: context_window: Optional[int] = None, capabilities: List[str] = Field(default_factory=list)
 
-# Get API keys from environment
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+class Settings(BaseSettings):
+    PORT: int = 8080
+    LOG_LEVEL: str = "INFO"
+    TARGET_LLM_PROVIDER: str = "gemini" # Can be "openai" or "gemini"
 
-# Get preferred provider (default to openai)
-PREFERRED_PROVIDER = os.environ.get("PREFERRED_PROVIDER", "openai").lower()
+    # API Keys for LiteLLM direct calls
+    OPENAI_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None # For Google Gemini
+    ANTHROPIC_API_KEY: Optional[str] = None # If you want to allow 'anthropic' as a TARGET_LLM_PROVIDER
 
-# Get model mapping configuration from environment
-# Default to latest OpenAI models if not set
-SMALL_MODEL = os.environ.get("SMALL_MODEL", "gpt-4.1-mini")
-BIG_MODEL = os.environ.get("BIG_MODEL", "gpt-4.1")
+    # --- Model Translation Maps ---
+    ANTHROPIC_MODELS_INFO: Dict[str, AnthropicModelInfo] = Field(default_factory=lambda: {
+        "anthropic/claude-3-opus": AnthropicModelInfo(description="Anthropic's most powerful model, for highly complex tasks."),
+        "anthropic/claude-3.5-sonnet": AnthropicModelInfo(description="Anthropic's latest balanced model, excelling at intelligence and speed."),
+        "anthropic/claude-3-sonnet": AnthropicModelInfo(description="Anthropic's balanced model for intelligence and speed (previous generation to 3.5)."),
+        "anthropic/claude-3-haiku": AnthropicModelInfo(description="Anthropic's fastest and most compact model for near-instant responsiveness.")
+    })
 
-# List of OpenAI models - default
-DEFAULT_OPENAI_MODELS = [
-    "o3-mini", "o1", "o1-mini", "o1-pro",
-    "gpt-4.5-preview", "gpt-4o", "gpt-4o-audio-preview",
-    "chatgpt-4o-latest", "gpt-4o-mini", "gpt-4o-mini-audio-preview",
-    "gpt-4.1", "gpt-4.1-mini" # Retaining defaults for fallback
-]
-# Load from environment or use default
-OPENAI_MODELS_STR = os.environ.get("OPENAI_MODELS_CSV")
-OPENAI_MODELS = [model.strip() for model in OPENAI_MODELS_STR.split(',')] if OPENAI_MODELS_STR else DEFAULT_OPENAI_MODELS
+    ANTHROPIC_TO_OPENAI_MAP: Dict[str, str] = Field(default_factory=lambda: {
+        "anthropic/claude-3-opus": "openai/gpt-4o",
+        "anthropic/claude-3.5-sonnet": "openai/gpt-4o",
+        "anthropic/claude-3-sonnet": "openai/gpt-4-turbo",
+        "anthropic/claude-3-haiku": "openai/gpt-4o-mini",
+        _DEFAULT_KEY_FOR_OPENAI_PROVIDER_MODEL: "openai/gpt-3.5-turbo" # Default model for OpenAI provider
+    })
 
-# List of Gemini models - default
-DEFAULT_GEMINI_MODELS = [
-    "gemini-2.5-pro-preview-03-25",
-    "gemini-2.0-flash"
-]
-# Load from environment or use default
-GEMINI_MODELS_STR = os.environ.get("GEMINI_MODELS_CSV")
-GEMINI_MODELS = [model.strip() for model in GEMINI_MODELS_STR.split(',')] if GEMINI_MODELS_STR else DEFAULT_GEMINI_MODELS
+    ANTHROPIC_TO_GEMINI_MAP: Dict[str, str] = Field(default_factory=lambda: {
+        "anthropic/claude-3-opus": "gemini/gemini-1.5-pro-latest", # Updated to a common Gemini Pro identifier
+        "anthropic/claude-3.5-sonnet": "gemini/gemini-1.5-pro-latest",
+        "anthropic/claude-3-sonnet": "gemini/gemini-1.5-pro-latest",
+        "anthropic/claude-3-haiku": "gemini/gemini-1.5-flash-latest", # Updated to a common Gemini Flash identifier
+        _DEFAULT_KEY_FOR_GEMINI_PROVIDER_MODEL: "gemini/gemini-1.5-pro-latest" # Default model for Gemini provider
+    })
+
+    # Keys to use with ModelTranslationService for default provider models
+    OPENAI_PROVIDER_DEFAULT_MODEL_TRANSLATION_KEY: str = _DEFAULT_KEY_FOR_OPENAI_PROVIDER_MODEL
+    GEMINI_PROVIDER_DEFAULT_MODEL_TRANSLATION_KEY: str = _DEFAULT_KEY_FOR_GEMINI_PROVIDER_MODEL
+
+    MODEL_METADATA_SOURCES: List[str] = Field(default_factory=lambda: [
+        "https://openrouter.ai/models?arch=Claude&fmt=table",
+        "https://openrouter.ai/models?arch=GPT&fmt=table",
+        "https://openrouter.ai/models?arch=Gemini&fmt=table",
+        "Official Anthropic Documentation URL",
+        "Official OpenAI Documentation URL",
+        "Official Google AI Documentation URL"
+    ])
+    MODEL_MAP_LAST_UPDATED: str = "2025-05-27" # Example date, update as needed
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+settings = Settings()
