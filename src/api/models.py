@@ -67,11 +67,17 @@ class AnthropicToolChoiceTool(BaseModel):
 
 AnthropicToolChoice = Union[AnthropicToolChoiceAuto, AnthropicToolChoiceAny, AnthropicToolChoiceTool]
 
+class ThinkingConfig(BaseModel):
+    enabled: bool
+    budget_tokens: Optional[int] = None
+    type: Optional[str] = None
+
+
 # Anthropic Messages Request
 class AnthropicMessagesRequest(BaseModel):
     model: str # This will be passed to LiteLLM, e.g., "openai/gpt-4o", "gemini/gemini-pro"
     messages: List[AnthropicMessage]
-    system: Optional[str] = None # Anthropic system prompt is a simple string
+    system: Optional[Union[str, List[AnthropicContentBlockText]]] = None # Can be string or list of text blocks
     max_tokens: int
     metadata: Optional[Dict[str, Any]] = None
     stop_sequences: Optional[List[str]] = None
@@ -81,6 +87,7 @@ class AnthropicMessagesRequest(BaseModel):
     top_k: Optional[int] = None
     tools: Optional[List[AnthropicTool]] = None
     tool_choice: Optional[AnthropicToolChoice] = None
+    thinking: Optional[ThinkingConfig] = None # For advanced thinking configurations
 
 # Anthropic Usage Information
 class AnthropicUsage(BaseModel):

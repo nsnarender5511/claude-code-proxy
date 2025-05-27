@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def _translate_anthropic_messages_to_openai(
     anthropic_messages: List[AnthropicMessage],
-    anthropic_system_prompt: Optional[str]
+    anthropic_system_prompt: Optional[Union[str, List[AnthropicContentBlockText]]]
 ) -> List[Union[OpenAIChatMessageSystem, OpenAIChatMessageUser, OpenAIChatMessageAssistant, OpenAIChatMessageTool]]:
     """
     Translates a list of Anthropic messages and an optional system prompt
@@ -25,7 +25,17 @@ def _translate_anthropic_messages_to_openai(
     openai_messages: List[Union[OpenAIChatMessageSystem, OpenAIChatMessageUser, OpenAIChatMessageAssistant, OpenAIChatMessageTool]] = []
 
     if anthropic_system_prompt:
-        openai_messages.append(OpenAIChatMessageSystem(content=anthropic_system_prompt))
+        system_content = ""
+        if isinstance(anthropic_system_prompt, str):
+            system_content = anthropic_system_prompt
+        elif isinstance(anthropic_system_prompt, list):
+            # Assuming it's List[AnthropicContentBlockText] as per model
+            system_content = "\n".join(
+                block.text for block in anthropic_system_prompt if isinstance(block, AnthropicContentBlockText)
+            )
+        
+        if system_content and system_content.strip(): # Ensure content is not empty or just whitespace
+            openai_messages.append(OpenAIChatMessageSystem(role="system", content=system_content.strip()))
 
     # TODO: Implement detailed message and content block translation logic
     # - AnthropicContentBlockText -> OpenAI text content
