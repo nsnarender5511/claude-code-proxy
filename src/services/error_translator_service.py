@@ -1,12 +1,9 @@
-import logging
-import json
-from typing import Dict, Any, AsyncGenerator
+from loguru import logger
+from typing import Dict, Any, Optional, Union, AsyncGenerator
 from src.api.v1.schemas.anthropic_api import (
     AnthropicSSEError, # Updated import
     AnthropicSSEErrorContent # Updated import
 )
-
-logger = logging.getLogger(__name__)
 
 def translate_openai_error_to_anthropic_format(
     error_details: Dict[str, Any],

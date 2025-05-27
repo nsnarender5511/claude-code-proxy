@@ -1,8 +1,6 @@
-import logging
-from pydantic import BaseModel, Field
+import time
+from pydantic import BaseModel
 from typing import List, Dict, Any, Optional, Union, Literal
-
-logger = logging.getLogger(__name__)
 
 class OpenAIMessageContentPartText(BaseModel):
     type: Literal["text"]

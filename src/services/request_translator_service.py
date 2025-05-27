@@ -1,4 +1,4 @@
-import logging
+from loguru import logger
 import json
 from typing import List, Dict, Any, Optional, Union
 from src.api.v1.schemas.anthropic_api import (
@@ -25,10 +25,8 @@ from src.models.openai_provider_models import (
     OpenAIMessageContentPartImage,
     OpenAIMessageContentPartImageURL,
     OpenAIToolChoiceOption,
-    OpenAIResponseFormat,
 )
-
-logger = logging.getLogger(__name__)
+from src.core.config import settings
 
 
 def _translate_anthropic_messages_to_openai(
@@ -90,13 +88,16 @@ def _translate_anthropic_messages_to_openai(
                             )
                         )
                     elif isinstance(block, AnthropicContentBlockToolResult):
-                        tool_content_str = ''
-                        if isinstance(block.content, str):
-                            tool_content_str = block.content
-                        elif isinstance(block.content, list) or isinstance(block.content, dict):
-                            tool_content_str = json.dumps(block.content)
-                        else:
-                            tool_content_str = str(block.content)
+                        # Attempt to parse the 'content' as JSON if it's a string,
+                        # then re-serialize to ensure it's a valid JSON string for the tool_result
+                        try:
+                            if isinstance(block.content, (list, dict)):
+                                tool_content_str = json.dumps(block.content)
+                            else:
+                                tool_content_str = str(block.content) # Handles str and other types
+                        except json.JSONDecodeError:
+                            logger.warning(f"Content for tool_call_id {block.tool_call_id} is a string but not valid JSON. Passing as raw string.")
+                            tool_content_str = str(block.content) # Fallback to string
                         current_message_tool_results.append(
                             OpenAIChatMessageTool(
                                 role='tool',
@@ -144,11 +145,7 @@ def _translate_anthropic_messages_to_openai(
                                 type='function',
                                 function=OpenAIFunctionCall(
                                     name=block.name,
-                                    arguments=(
-                                        json.dumps(block.input)
-                                        if isinstance(block.input, dict)
-                                        else str(block.input)
-                                    ),
+                                    arguments=json.dumps(block.input),
                                 ),
                             )
                         )
@@ -200,6 +197,7 @@ def _translate_anthropic_tool_choice_to_openai(
 ) -> Optional[OpenAIToolChoiceOption]:
     if not anthropic_tool_choice:
         return None
+    logger.debug(f"Attempting to translate anthropic_tool_choice: {anthropic_tool_choice}")
     logger.warning(
         '_translate_anthropic_tool_choice_to_openai: Detailed translation logic not yet implemented.'
     )

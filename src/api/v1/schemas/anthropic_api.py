@@ -1,8 +1,5 @@
-import logging
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl
 from typing import List, Dict, Any, Optional, Union, Literal
-
-logger = logging.getLogger(__name__)
 
 
 class AnthropicContentBlockText(BaseModel):

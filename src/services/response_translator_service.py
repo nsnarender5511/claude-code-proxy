@@ -1,4 +1,4 @@
-import logging
+from loguru import logger
 import json
 from typing import List, Union
 from src.api.v1.schemas.anthropic_api import (
@@ -12,8 +12,6 @@ from src.models.openai_provider_models import (
     OpenAIChatCompletionChoiceMessage,
     OpenAICompletionUsage,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _translate_openai_message_content_to_anthropic(

@@ -3,10 +3,11 @@ from src.core.logging_setup import setup_logging # Updated import
 from src.api.v1.endpoints import messages as messages_v1 # Updated import
 from src.api.v1.endpoints import health as health_v1   # Updated import
 from src.core.config import settings # Updated import
-import logging
+from loguru import logger
 
+# Initialize logging
 setup_logging()
-logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title='Anthropic SDK Facade for LiteLLM',
     version='1.1.0',

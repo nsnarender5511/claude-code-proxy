@@ -1,8 +1,8 @@
-import logging
+from loguru import logger
 import json # For potential JSONResponse if error occurs before orchestrator
-from typing import AsyncGenerator, Dict, Any # For error response type hint
+from typing import AsyncGenerator, Dict # For error response type hint
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 
 from src.api.v1.schemas.anthropic_api import (
@@ -12,7 +12,6 @@ from src.api.v1.schemas.anthropic_api import (
 from src.services.message_flow_orchestrator import orchestrate_message_proxy # Updated import
 from src.services.error_translator_service import translate_openai_error_to_anthropic_format # For immediate errors
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/messages", response_model=None) # response_model=None as orchestrator handles response types
@@ -34,10 +33,7 @@ async def messages_endpoint(request: Request, anthropic_request: AnthropicMessag
             elif isinstance(orchestrator_response_or_stream, dict) and 'error' in orchestrator_response_or_stream.get('type', ''):
                 # Stream was requested, but orchestrator returned a JSON error (e.g., setup failed before streaming could start)
                 logger.error(f"API Endpoint: Orchestrator returned JSON error for a stream request: {orchestrator_response_or_stream}")
-                # Determine status code from error if possible, else default
-                # This part needs careful thought on how orchestrator signals status for pre-stream errors
-                status_code = 500 # Default
-                # Example: if orchestrator_response_or_stream.get('error',{}).get('type') == 'invalid_request_error': status_code = 400
+                status_code = 500 # Default for pre-stream errors
                 return JSONResponse(status_code=status_code, content=orchestrator_response_or_stream)
             else:
                 logger.error("API Endpoint: Stream requested, but orchestrator returned unexpected non-streamable, non-error type.")
@@ -60,15 +56,18 @@ async def messages_endpoint(request: Request, anthropic_request: AnthropicMessag
                 # The status code determination needs to be more robust based on error type.
                 # Here, we are directly returning the error dict from the orchestrator.
                 # It would be better if orchestrator errors were exceptions caught here, or a tuple (status, content)
-                final_status_code = 500 # default
+                
+                error_status_map = {
+                    "authentication_error": 401,
+                    "permission_error": 403,
+                    "invalid_request_error": 400,
+                    "not_found_error": 404,
+                    "rate_limit_error": 429,
+                    "api_connection_error": 503,
+                    "overloaded_error": 503, # Added based on previous if/elif
+                }
                 err_type = orchestrator_response_or_stream.get("error", {}).get("type")
-                if err_type == "authentication_error": final_status_code = 401
-                elif err_type == "permission_error": final_status_code = 403
-                elif err_type == "invalid_request_error": final_status_code = 400
-                elif err_type == "not_found_error": final_status_code = 404
-                elif err_type == "rate_limit_error": final_status_code = 429
-                elif err_type == "api_connection_error": final_status_code = 503
-                elif err_type == "overloaded_error": final_status_code = 503
+                final_status_code = error_status_map.get(err_type, 500) # Default to 500
                 
                 return JSONResponse(status_code=final_status_code, content=orchestrator_response_or_stream)
             else:

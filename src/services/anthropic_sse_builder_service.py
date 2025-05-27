@@ -1,17 +1,10 @@
-import logging
-import json
-from typing import AsyncGenerator, Union, Dict, Any
+from loguru import logger
+from typing import AsyncGenerator, Dict, Any
 from src.api.v1.schemas.anthropic_api import (
     AnthropicMessagesResponse, # For message_start event
-    AnthropicContentBlockText,
-    AnthropicContentBlockToolUse,
     # SSE specific models are implicitly used by constructing dicts to match them
 ) # Updated import
-from src.models.openai_provider_models import (
-    OpenAIChatCompletionChunk,
-) # Updated import
-
-logger = logging.getLogger(__name__)
+from src.models.openai_provider_models import OpenAIChatCompletionChunk
 
 
 def _build_message_start_event(initial_response_id: str, request_model_id: str) -> str:
@@ -70,11 +63,11 @@ def _build_message_completion_events(finish_reason: str, chunk_usage: Dict[str, 
     anthropic_finish_reason = stop_reason_map.get(finish_reason, finish_reason)
 
     output_tokens = 1 # Default placeholder
-    if chunk_usage and hasattr(chunk_usage, 'completion_tokens'):
-        output_tokens = chunk_usage.completion_tokens
-    elif isinstance(chunk_usage, dict) and 'completion_tokens' in chunk_usage: # handle dict if not an object
-        output_tokens = chunk_usage['completion_tokens']
-
+    if chunk_usage:
+        if isinstance(chunk_usage, dict):
+            output_tokens = chunk_usage.get('completion_tokens', 1)
+        else: # Assumes it's an object with attributes
+            output_tokens = getattr(chunk_usage, 'completion_tokens', 1)
 
     msg_delta_data = {
         "type": "message_delta",
@@ -122,16 +115,19 @@ async def build_anthropic_sse_stream(
 
                 yield _build_content_block_delta_event(current_block_index, delta.content)
             
-            # TODO: Add comprehensive tool_call handling for streaming if needed
-            # This would involve:
-            # 1. Identifying a tool_call_start from OpenAI delta (e.g., delta.tool_calls with index)
-            # 2. If new tool call, yield content_block_stop for previous text block (if any)
-            # 3. Increment current_block_index
-            # 4. Yield content_block_start for tool_use with appropriate index and tool details.
-            #    - `content_block`: `{"type": "tool_use", "id": "toolu_...", "name": "...", "input": {}}`
-            # 5. Yield content_block_delta for tool_use input deltas.
-            #    - `delta`: `{"type": "tool_use_delta", "input_json": "partial_json_input"}`
-            # 6. When tool call finishes (or main content finishes), yield content_block_stop for the tool_use block.
+            # Currently, this only handles text deltas.
+            # TODO JIRA-1234: Need to handle comprehensive tool_call streaming here if OpenAI/LiteLLM sends tool_call deltas.
+            # This involves:
+            # 1. Detecting the start of a tool_call in a chunk (e.g., if chunk.choices[0].delta.tool_calls exists).
+            # 2. If it's the first tool_call delta for a given tool_call_id and index, yield a content_block_start for tool_use.
+            # 3. Yield content_block_delta events for the tool_use, accumulating the 'name', 'id', and 'input' parts.
+            #    The input might be streamed as a JSON string, so careful accumulation is needed.
+            # 4. When the tool_call is complete (either by a specific signal or end of stream for that tool_call), yield content_block_stop.
+            # This is complex because tool_calls can be interleaved with text, and multiple tool_calls can appear.
+            # The Anthropic equivalent is `content_block_start` (type: tool_use), `content_block_delta` (type: input_json_delta), `content_block_stop` (type: tool_use).
+            if delta.tool_calls:
+                # TODO: Implement tool_call handling
+                pass
 
             if finish_reason:
                 # Send content_block_stop for the current block

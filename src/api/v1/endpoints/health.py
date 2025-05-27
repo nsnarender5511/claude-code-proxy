@@ -1,8 +1,7 @@
-import logging
+from loguru import logger
 from fastapi import APIRouter
-from src.core.config import settings # Updated import
+from src.core.config import settings
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.get("/health")

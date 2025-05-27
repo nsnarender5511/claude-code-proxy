@@ -1,6 +1,6 @@
 import litellm
-import logging
-import json
+from loguru import logger
+import asyncio
 from typing import AsyncGenerator, Union, Optional, Any
 from src.core.config import settings
 from src.models.openai_provider_models import (
@@ -8,8 +8,6 @@ from src.models.openai_provider_models import (
     OpenAIChatCompletionResponse,
     OpenAIChatCompletionChunk,
 )
-
-logger = logging.getLogger(__name__)
 
 # Helper function to resolve provider details
 def _resolve_provider_details(initial_model_in_payload: Optional[str], target_llm_provider_setting: str) -> tuple[Optional[str], Optional[str]]:
@@ -100,12 +98,15 @@ async def call_litellm_openai_chat_completions(
         f'Sending request to LiteLLM: Model: {payload.get('model')}, Stream: {payload.get('stream')}, Target Provider Setting: {settings.TARGET_LLM_PROVIDER}, API Key Provided: {bool(api_key_to_use)}'
     )
     try:
+        if request_data.stream:
+            logger.info(f"Initiating LiteLLM stream request for model: {payload.get('model')}")
+        else:
+            logger.info(f"Initiating LiteLLM non-stream request for model: {payload.get('model')}")
         response = await litellm.acompletion(**payload, api_key=api_key_to_use)
         
         if not request_data.stream:
             return _process_non_stream_response(response)
         else:
-            logger.info('LiteLLM stream request initiated by client.') # Log initiation before returning generator
             return _process_stream_response(response)
             
     except litellm.exceptions.APIError as e:

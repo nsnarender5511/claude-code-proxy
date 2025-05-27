@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings",
     "uvicorn (>=0.34.2,<0.35.0)",
     "black (>=25.1.0,<26.0.0)",
+    "loguru==0.7.2",
 ]
 
 [tool.black]

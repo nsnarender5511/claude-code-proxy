@@ -1,4 +1,4 @@
-import logging
+from loguru import logger
 import json
 import httpx # For exception handling
 from typing import Union, AsyncGenerator, Dict, Any
@@ -22,8 +22,6 @@ from src.services.error_translator_service import (
 )
 from src.clients.litellm_provider_client import call_litellm_openai_chat_completions
 from src.core.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 async def _handle_streaming_response(
