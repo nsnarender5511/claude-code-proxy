@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Request
-from src.core.logging_config import setup_logging
-from src.api.endpoints import messages
-from src.core.config import settings
+from src.core.logging_setup import setup_logging # Updated import
+from src.api.v1.endpoints import messages as messages_v1 # Updated import
+from src.api.v1.endpoints import health as health_v1   # Updated import
+from src.core.config import settings # Updated import
 import logging
 
 setup_logging()
@@ -20,8 +21,9 @@ async def log_requests_middleware(request: Request, call_next):
     logger.debug(f'Outgoing response: {response.status_code}')
     return response
 
-
-app.include_router(messages.router, prefix='/v1')
+# Include v1 routers
+app.include_router(messages_v1.router, prefix='/v1')
+app.include_router(health_v1.router, prefix='/v1') # Typically health might be at / or /health, adjust if needed
 
 
 @app.get('/')
@@ -33,4 +35,4 @@ if __name__ == '__main__':
     import uvicorn
 
     logger.info(f'Starting Uvicorn server on http://0.0.0.0:{settings.PORT}')
-    uvicorn.run(app, host='0.0.0.0', port=settings.PORT, log_level=settings.LOG_LEVEL.lower())
+    uvicorn.run(app, host='0.0.0.0', port=settings.PORT, log_level=settings.LOG_LEVEL.lower()) 

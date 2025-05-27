@@ -16,4 +16,4 @@ def setup_logging():
     logging.getLogger('uvicorn.error').setLevel(max(log_level, logging.INFO))
     logger = logging.getLogger(__name__)
     logger.info(f'Logging configured with level: {log_level_str}')
-    return logger
+    return logger 

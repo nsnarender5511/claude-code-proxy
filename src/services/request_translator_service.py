@@ -1,7 +1,7 @@
 import logging
 import json
 from typing import List, Dict, Any, Optional, Union
-from src.api.models import (
+from src.api.v1.schemas.anthropic_api import (
     AnthropicMessagesRequest,
     AnthropicMessage,
     AnthropicTool,
@@ -10,6 +10,8 @@ from src.api.models import (
     AnthropicContentBlockImage,
     AnthropicContentBlockToolUse,
     AnthropicContentBlockToolResult,
+)
+from src.models.openai_provider_models import (
     OpenAIChatCompletionRequest,
     OpenAIChatMessageSystem,
     OpenAIChatMessageUser,
@@ -238,4 +240,4 @@ def translate_anthropic_to_openai_request(
     if anthropic_request.stop_sequences:
         request_dict['stop'] = anthropic_request.stop_sequences
     final_request_dict = {k: v for k, v in request_dict.items() if v is not None}
-    return OpenAIChatCompletionRequest(**final_request_dict)
+    return OpenAIChatCompletionRequest(**final_request_dict) 
