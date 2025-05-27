@@ -14,7 +14,7 @@ class AnthropicContentBlockText(BaseModel):
 
 class AnthropicContentBlockImageSource(BaseModel):
     type: Literal["base64"]
-    media_type: str # e.g., "image/jpeg", "image/png"
+    media_type: Optional[str] = None # e.g., "image/jpeg", "image/png"
     data: str
 
 class AnthropicContentBlockImage(BaseModel):
@@ -46,7 +46,7 @@ class AnthropicMessage(BaseModel):
 # Anthropic Tool Definition
 class AnthropicToolInputSchema(BaseModel):
     type: Literal["object"] = "object"
-    properties: Dict[str, Any]
+    properties: Dict[str, Any] = Field(default_factory=dict)
     required: Optional[List[str]] = None
 
 class AnthropicTool(BaseModel):
