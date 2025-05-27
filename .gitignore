@@ -39,3 +39,5 @@ ENV/
 *.swo
 
 poetry.lock
+remove_comments_docstrings.sh
+process_python_file.py

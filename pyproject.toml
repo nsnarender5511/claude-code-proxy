@@ -12,5 +12,12 @@ dependencies = [
     "python-dotenv",
     "pydantic-settings",
     "uvicorn (>=0.34.2,<0.35.0)",
+    "black (>=25.1.0,<26.0.0)",
 ]
 
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+skip-string-normalization = true
+skip-magic-trailing-comma = true
+preview = true
