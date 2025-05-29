@@ -8,7 +8,16 @@ from src.api.v1.schemas.anthropic_api import (
 def translate_openai_error_to_anthropic_format(
     error_details: Dict[str, Any],
 ) -> Dict[str, Any]:
-    logger.debug(f'Translating error to Anthropic format: {error_details}')
+    # Log key fields from error_details instead of the whole object
+    if isinstance(error_details, dict):
+        err_obj_for_log = error_details.get('error', error_details)
+        log_msg = f"Translating error to Anthropic format. Input error type: {err_obj_for_log.get('type')}, message: {err_obj_for_log.get('message')}, code: {err_obj_for_log.get('code')}"
+        if 'param' in err_obj_for_log: # For validation errors
+            log_msg += f", param: {err_obj_for_log.get('param')}"
+        logger.debug(log_msg)
+    else:
+        logger.debug(f'Translating error to Anthropic format (non-dict input): {type(error_details)}')
+
     error_type = 'api_error' # Default error type
     error_message = 'An unexpected error occurred.'
 
