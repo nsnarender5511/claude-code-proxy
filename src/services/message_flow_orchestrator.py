@@ -28,7 +28,7 @@ async def _handle_streaming_response(
     litellm_sse_generator: AsyncGenerator[OpenAIChatCompletionChunk, None],
     anthropic_request_model: str,
 ) -> AsyncGenerator[str, None]:
-    logger.info("Orchestrator: Processing stream from LiteLLM via SSE builder.")
+    logger.debug("Orchestrator: Processing stream from LiteLLM via SSE builder.")
     first_chunk_id = "fallback_id_from_orchestrator" # Default if stream is empty or first chunk has no ID
     processed_litellm_stream: AsyncGenerator[OpenAIChatCompletionChunk, None]
 
@@ -85,7 +85,7 @@ async def _handle_streaming_response(
 async def orchestrate_message_proxy(
     anthropic_request: AnthropicMessagesRequest,
 ) -> Union[AnthropicMessagesResponse, AsyncGenerator[str, None], Dict[str, Any]]:
-    logger.info(
+    logger.debug(
         f"Orchestrating message proxy. Model: {anthropic_request.model}, Stream: {anthropic_request.stream}"
     )
 
@@ -95,7 +95,7 @@ async def orchestrate_message_proxy(
             anthropic_request
         )
         logger.debug(
-            f"Orchestrator: Translated to OpenAI request: {openai_request.model_dump_json(exclude_none=True)}"
+            f"Orchestrator: Translated to OpenAI. Model: {openai_request.model}, Messages count: {len(openai_request.messages)}, Stream: {openai_request.stream}"
         )
 
         # 2. Call LiteLLM Proxy (via client)
@@ -137,10 +137,10 @@ async def orchestrate_message_proxy(
                     }
                 )
 
-            logger.info("Orchestrator: Processing non-stream response from LiteLLM.")
+            logger.debug("Orchestrator: Processing non-stream response from LiteLLM.")
             openai_response: OpenAIChatCompletionResponse = litellm_response_or_generator
             logger.debug(
-                f"Orchestrator: Received OpenAI response from LiteLLM client: {openai_response.model_dump_json(exclude_none=True)}"
+                f"Orchestrator: Received OpenAI response. ID: {openai_response.id}, Model: {openai_response.model}, Choices: {len(openai_response.choices)}"
             )
 
             # 4. Translate OpenAI response back to Anthropic format
@@ -148,7 +148,7 @@ async def orchestrate_message_proxy(
                 translate_openai_to_anthropic_response(openai_response)
             )
             logger.debug(
-                f"Orchestrator: Translated to Anthropic response: {final_anthropic_response.model_dump_json(exclude_none=True)}"
+                f"Orchestrator: Translated to Anthropic response. ID: {final_anthropic_response.id}, Model: {final_anthropic_response.model}, Content blocks: {len(final_anthropic_response.content)}"
             )
             return final_anthropic_response
 

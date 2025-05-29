@@ -35,7 +35,7 @@ class Settings(BaseSettings):
             "anthropic/claude-3.5-sonnet": "gemini/gemini-1.5-pro-latest",
             "anthropic/claude-3-sonnet": "gemini/gemini-1.5-pro-latest",
             "anthropic/claude-3-haiku": "gemini/gemini-1.5-flash-latest",
-            _DEFAULT_KEY_FOR_GEMINI_PROVIDER_MODEL: "gemini/gemini-1.5-pro-latest",
+            _DEFAULT_KEY_FOR_GEMINI_PROVIDER_MODEL: "gemini-2.5-pro-preview-05-06",
         }
     )
 

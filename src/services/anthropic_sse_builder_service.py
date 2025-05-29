@@ -1,3 +1,4 @@
+import json
 from loguru import logger
 from typing import AsyncGenerator, Dict, Any
 from src.api.v1.schemas.anthropic_api import (
@@ -84,7 +85,7 @@ async def build_anthropic_sse_stream(
     request_model_id: str, # Used for the initial message_start model field
     initial_response_id: str # Used for the initial message_start id field
 ) -> AsyncGenerator[str, None]:
-    logger.info('Starting OpenAI to Anthropic SSE stream translation for SSE builder service.')
+    logger.debug('Starting OpenAI to Anthropic SSE stream translation for SSE builder service.')
     
     sent_message_start = False
     current_block_index = 0
@@ -93,7 +94,7 @@ async def build_anthropic_sse_stream(
     sent_content_block_starts: Dict[int, bool] = {}
 
     async for chunk in openai_sse_generator:
-        logger.debug(f'SSE Builder: Received OpenAI SSE chunk: {chunk.model_dump_json(exclude_none=True)}')
+        logger.debug(f"SSE Builder: Received OpenAI SSE chunk. ID: {chunk.id}, Choices: {len(chunk.choices) if chunk.choices else 0}, Finish reason: {chunk.choices[0].finish_reason if chunk.choices and chunk.choices[0].finish_reason else 'N/A'}")
         
         if not sent_message_start:
             yield _build_message_start_event(initial_response_id, request_model_id)
@@ -145,4 +146,4 @@ async def build_anthropic_sse_stream(
                 current_block_index = 0 # Reset block index for a new message stream
                 sent_content_block_starts.clear()
 
-    logger.info('Finished OpenAI to Anthropic SSE stream translation in SSE builder service.') 
+    logger.debug('Finished OpenAI to Anthropic SSE stream translation in SSE builder service.') 

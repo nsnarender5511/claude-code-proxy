@@ -43,4 +43,21 @@ def setup_logging():
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
     logger.info("Standard logging intercepted and redirected to Loguru.")
 
+    # Attempt to control LiteLLM's logger level
+    litellm_log_level_to_set = logging.INFO # Or logging.WARNING for fewer logs
+    logger.info(f"Attempting to set loggers starting with 'litellm' to level: {logging.getLevelName(litellm_log_level_to_set)}")
+    for logger_name in logging.Logger.manager.loggerDict:
+        if logger_name.startswith('litellm'):
+            current_logger = logging.getLogger(logger_name)
+            current_logger.setLevel(litellm_log_level_to_set)
+            # Optionally, if LiteLLM adds its own handlers that don't respect levels:
+            # for handler in list(current_logger.handlers): # Iterate over a copy
+            #     current_logger.removeHandler(handler)
+            # current_logger.addHandler(InterceptHandler()) # Ensure it uses our interceptor
+            # current_logger.propagate = False # Stop it from propagating to root logger if it causes duplicates
+            logger.debug(f"Set level for '{logger_name}' to {logging.getLevelName(litellm_log_level_to_set)}")
+
+    # Also set the root 'litellm' logger just in case it's used directly or new sub-loggers are created later
+    logging.getLogger("litellm").setLevel(litellm_log_level_to_set)
+
     return logger # Return the configured logger for convenience if needed 

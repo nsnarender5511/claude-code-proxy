@@ -52,7 +52,7 @@ def _translate_openai_message_content_to_anthropic(
 def translate_openai_to_anthropic_response(
     openai_response: OpenAIChatCompletionResponse,
 ) -> AnthropicMessagesResponse:
-    logger.info(
+    logger.debug(
         f'Translating OpenAI response (ID: {openai_response.id}, Model: {openai_response.model}) to Anthropic format.'
     )
     if not openai_response.choices:

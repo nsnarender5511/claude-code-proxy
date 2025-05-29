@@ -212,7 +212,7 @@ def _translate_anthropic_tool_choice_to_openai(
 def translate_anthropic_to_openai_request(
     anthropic_request: AnthropicMessagesRequest,
 ) -> OpenAIChatCompletionRequest:
-    logger.info(
+    logger.debug(
         f'Translating Anthropic request (model: {anthropic_request.model}) to OpenAI format.'
     )
     openai_messages = _translate_anthropic_messages_to_openai(
