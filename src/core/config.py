@@ -2,12 +2,6 @@ from typing import Optional, Dict, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
-_DEFAULT_KEY_FOR_OPENAI_PROVIDER_MODEL = (
-    "anthropic/_internal_default_openai_provider_model"
-)
-_DEFAULT_KEY_FOR_GEMINI_PROVIDER_MODEL = (
-    "anthropic/_internal_default_gemini_provider_model"
-)
 
 
 class AnthropicModelInfo(BaseSettings):
@@ -28,25 +22,17 @@ class Settings(BaseSettings):
             "anthropic/claude-3.5-sonnet": "openai/gpt-4o",
             "anthropic/claude-3-sonnet": "openai/gpt-4-turbo",
             "anthropic/claude-3-haiku": "openai/gpt-4o-mini",
-            _DEFAULT_KEY_FOR_OPENAI_PROVIDER_MODEL: "openai/gpt-3.5-turbo",
         }
     )
     ANTHROPIC_TO_GEMINI_MAP: Dict[str, str] = Field(
         default_factory=lambda: {
-            "claude-3-5-haiku-20241022": "gemini-2.5-flash-preview-04-17",
-
+            "claude-3-5-haiku-20241022": "gemini-2.0-flash",
+            "claude-sonnet-4-20250514": "gemini-2.5-pro-preview-03-25",
             "anthropic/claude-3-opus": "gemini/gemini-1.5-pro-latest",
             "anthropic/claude-3.5-sonnet": "gemini/gemini-1.5-pro-latest",
             "anthropic/claude-3-sonnet": "gemini/gemini-1.5-pro-latest",
             "anthropic/claude-3-haiku": "gemini/gemini-1.5-flash-latest",
-            _DEFAULT_KEY_FOR_GEMINI_PROVIDER_MODEL: "gemini-2.5-pro-preview-03-25",
         }
-    )
-    OPENAI_PROVIDER_DEFAULT_MODEL_TRANSLATION_KEY: str = (
-        _DEFAULT_KEY_FOR_OPENAI_PROVIDER_MODEL
-    )
-    GEMINI_PROVIDER_DEFAULT_MODEL_TRANSLATION_KEY: str = (
-        _DEFAULT_KEY_FOR_GEMINI_PROVIDER_MODEL
     )
     OTEL_SERVICE_NAME: str = "claude-code-proxy"
     OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = None

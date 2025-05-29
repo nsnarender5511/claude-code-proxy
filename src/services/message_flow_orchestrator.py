@@ -55,6 +55,7 @@ async def _handle_streaming_response(
                 yield
 
         processed_litellm_stream = empty_stream()
+    
     try:
         async for sse_event_str in build_anthropic_sse_stream(
             processed_litellm_stream, anthropic_request_model, first_chunk_id
@@ -97,10 +98,11 @@ async def _handle_streaming_response(
 
 async def orchestrate_message_proxy(
     anthropic_request: AnthropicMessagesRequest,
-) -> Union[AnthropicMessagesResponse, AsyncGenerator[str, None], Dict[str, Any]]:
+) -> Union[tuple[AnthropicMessagesResponse, str], tuple[AsyncGenerator[str, None], str], tuple[Dict[str, Any], str]]:
     logger.debug(
         f"Orchestrating message proxy. Model: {anthropic_request.model}, Stream: {anthropic_request.stream}"
     )
+    target_model_name_for_logging = "unknown_target_model"
     try:
         openai_request: OpenAIChatCompletionRequest = (
             translate_anthropic_to_openai_request(anthropic_request)
@@ -108,15 +110,17 @@ async def orchestrate_message_proxy(
         logger.debug(
             f"Orchestrator: Translated to OpenAI. Model: {openai_request.model}, Messages count: {len(openai_request.messages)}, Stream: {openai_request.stream}"
         )
-        litellm_response_or_generator = await call_litellm_openai_chat_completions(
+        litellm_response_or_generator, final_target_model = await call_litellm_openai_chat_completions(
             openai_request
         )
+        target_model_name_for_logging = final_target_model
+
         if anthropic_request.stream:
             if not hasattr(litellm_response_or_generator, "__aiter__"):
                 logger.error(
                     "Orchestrator: Expected an async generator for streaming, but did not receive one."
                 )
-                return translate_openai_error_to_anthropic_format(
+                error_response = translate_openai_error_to_anthropic_format(
                     {
                         "error": {
                             "type": "internal_server_error",
@@ -124,10 +128,13 @@ async def orchestrate_message_proxy(
                         }
                     }
                 )
+                return error_response, target_model_name_for_logging
+            
             litellm_sse_generator = litellm_response_or_generator
-            return _handle_streaming_response(
-                litellm_sse_generator, anthropic_request.model
+            sse_event_generator = _handle_streaming_response(
+                litellm_sse_generator, anthropic_request.model 
             )
+            return sse_event_generator, target_model_name_for_logging
         else:
             if not isinstance(
                 litellm_response_or_generator, OpenAIChatCompletionResponse
@@ -135,7 +142,7 @@ async def orchestrate_message_proxy(
                 logger.error(
                     "Orchestrator: Expected OpenAIChatCompletionResponse for non-streaming, got something else."
                 )
-                return translate_openai_error_to_anthropic_format(
+                error_response = translate_openai_error_to_anthropic_format(
                     {
                         "error": {
                             "type": "internal_server_error",
@@ -143,6 +150,7 @@ async def orchestrate_message_proxy(
                         }
                     }
                 )
+                return error_response, target_model_name_for_logging
             logger.debug("Orchestrator: Processing non-stream response from LiteLLM.")
             openai_response: OpenAIChatCompletionResponse = (
                 litellm_response_or_generator
@@ -156,7 +164,7 @@ async def orchestrate_message_proxy(
             logger.debug(
                 f"Orchestrator: Translated to Anthropic response. ID: {final_anthropic_response.id}, Model: {final_anthropic_response.model}, Content blocks: {len(final_anthropic_response.content)}"
             )
-            return final_anthropic_response
+            return final_anthropic_response, target_model_name_for_logging
     except httpx.HTTPStatusError as e_http:
         logger.error(
             f"Orchestrator: HTTPStatusError from LiteLLM client: {e_http.response.status_code} - {e_http.response.text}",
@@ -168,7 +176,7 @@ async def orchestrate_message_proxy(
             error_payload = {
                 "error": {"type": "upstream_error", "message": e_http.response.text}
             }
-        return translate_openai_error_to_anthropic_format(error_payload)
+        return translate_openai_error_to_anthropic_format(error_payload), target_model_name_for_logging
     except httpx.RequestError as e_req:
         logger.error(
             f"Orchestrator: RequestError connecting to LiteLLM client: {str(e_req)}",
@@ -181,21 +189,27 @@ async def orchestrate_message_proxy(
                     "message": f"Could not connect to LiteLLM proxy: {str(e_req)}",
                 }
             }
-        )
+        ), target_model_name_for_logging
     except ValueError as e_val:
         logger.error(
             f"Orchestrator: ValueError during processing: {str(e_val)}", exc_info=True
         )
         return translate_openai_error_to_anthropic_format(
             {"error": {"type": "invalid_request_error", "message": str(e_val)}}
-        )
-    except Exception as e_generic:
-        logger.exception("Orchestrator: An unexpected error occurred:")
+        ), target_model_name_for_logging
+    except Exception as e_model_related:
+        resolved_model_name = target_model_name_for_logging
+        if "Failed to resolve provider details" in str(e_model_related):
+            logger.error(f"Orchestrator: Model resolution failed: {str(e_model_related)}")
+            return translate_openai_error_to_anthropic_format(
+                {"error": {"type": "invalid_request_error", "message": str(e_model_related)}}
+            ), resolved_model_name
+        logger.exception("Orchestrator: Unhandled generic exception:")
         return translate_openai_error_to_anthropic_format(
             {
                 "error": {
                     "type": "internal_server_error",
-                    "message": f"An unexpected error occurred in orchestration: {str(e_generic)}",
+                    "message": f"Unexpected orchestration error: {str(e_model_related)}"
                 }
             }
-        )
+        ), resolved_model_name

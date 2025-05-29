@@ -54,7 +54,7 @@ def setup_logging():
     console_handler.setLevel(numeric_log_level)
 
     # Updated format string with more separators
-    format_string = f"%(asctime)s{SEPARATOR}%(levelname)-8s{SEPARATOR}%(name)s:%(funcName)s:%(lineno)d{SEPARATOR}- %(message)s"
+    format_string = f"%(message)s"
     formatter = ColorizedFormatter(format_string, datefmt="%Y-%m-%d %H:%M:%S")
 
     console_handler.setFormatter(formatter)

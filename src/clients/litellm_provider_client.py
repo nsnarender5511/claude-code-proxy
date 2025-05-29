@@ -18,46 +18,48 @@ def _resolve_provider_details(
     target_model_to_use = initial_model_in_payload
     api_key_to_use = None
     if target_llm_provider_setting == "openai":
+        if not initial_model_in_payload:
+            logger.error("No model provided in payload for OpenAI provider.")
+            return None, None
         translated_model = settings.ANTHROPIC_TO_OPENAI_MAP.get(
-            settings.OPENAI_PROVIDER_DEFAULT_MODEL_TRANSLATION_KEY
+            initial_model_in_payload
         )
         if not translated_model:
             logger.error(
-                f"Could not translate default OpenAI model key: {settings.OPENAI_PROVIDER_DEFAULT_MODEL_TRANSLATION_KEY}"
+                f"Could not translate Anthropic model '{initial_model_in_payload}' to an OpenAI model. It's not found in ANTHROPIC_TO_OPENAI_MAP."
             )
-            raise ValueError("Default OpenAI model key not found in translation map.")
+            return None, None
         target_model_to_use = translated_model
         api_key_to_use = settings.OPENAI_API_KEY
         if not api_key_to_use:
             logger.error(
                 "OpenAI is the target provider, but OPENAI_API_KEY is not set."
             )
-            raise ValueError(
-                "OPENAI_API_KEY is not configured for the target provider 'openai'."
-            )
+            return None, None
         logger.debug(
-            f"Resolved to OpenAI. Overriding model to '{target_model_to_use}'."
+            f"Resolved to OpenAI. Original model '{initial_model_in_payload}', translated to '{target_model_to_use}'."
         )
     elif target_llm_provider_setting == "gemini":
+        if not initial_model_in_payload:
+            logger.error("No model provided in payload for Gemini provider.")
+            return None, None
         translated_model = settings.ANTHROPIC_TO_GEMINI_MAP.get(
-            settings.GEMINI_PROVIDER_DEFAULT_MODEL_TRANSLATION_KEY
+            initial_model_in_payload
         )
         if not translated_model:
             logger.error(
-                f"Could not translate default Gemini model key: {settings.GEMINI_PROVIDER_DEFAULT_MODEL_TRANSLATION_KEY}"
+                f"Could not translate Anthropic model '{initial_model_in_payload}' to a Gemini model. It's not found in ANTHROPIC_TO_GEMINI_MAP."
             )
-            raise ValueError("Default Gemini model key not found in translation map.")
+            return None, None
         target_model_to_use = translated_model
         api_key_to_use = settings.GEMINI_API_KEY
         if not api_key_to_use:
             logger.error(
                 "Gemini is the target provider, but GEMINI_API_KEY is not set."
             )
-            raise ValueError(
-                "GEMINI_API_KEY is not configured for the target provider 'gemini'."
-            )
+            return None, None
         logger.debug(
-            f"Resolved to Gemini. Overriding model to '{target_model_to_use}'."
+            f"Resolved to Gemini. Original model '{initial_model_in_payload}', translated to '{target_model_to_use}'."
         )
     elif target_llm_provider_setting == "anthropic":
         api_key_to_use = settings.ANTHROPIC_API_KEY
@@ -65,9 +67,7 @@ def _resolve_provider_details(
             logger.error(
                 "Anthropic is the target provider, but ANTHROPIC_API_KEY is not set."
             )
-            raise ValueError(
-                "ANTHROPIC_API_KEY is not configured for the target provider 'anthropic'."
-            )
+            return None, None
         logger.debug(f"Resolved to Anthropic. Using model '{target_model_to_use}'.")
     else:
         logger.warning(
@@ -104,15 +104,20 @@ async def _process_stream_response(
 async def call_litellm_openai_chat_completions(
     request_data: OpenAIChatCompletionRequest,
 ) -> Union[
-    OpenAIChatCompletionResponse, AsyncGenerator[OpenAIChatCompletionChunk, None]
+    tuple[OpenAIChatCompletionResponse, str],
+    tuple[AsyncGenerator[OpenAIChatCompletionChunk, None], str],
 ]:
     payload = request_data.model_dump(exclude_none=True)
     initial_model_in_payload = payload.get("model")
     final_target_model, api_key_to_use = _resolve_provider_details(
         initial_model_in_payload, settings.TARGET_LLM_PROVIDER
     )
+    if final_target_model is None or api_key_to_use is None:
+        error_message = f"Failed to resolve provider details for model: {initial_model_in_payload} with provider: {settings.TARGET_LLM_PROVIDER}"
+        logger.error(error_message)
+        raise Exception(error_message)
+
     payload["model"] = final_target_model
-    logger.info(f"Sending request to LiteLLM: Model: {payload.get('model')}")
     try:
         if request_data.stream:
             logger.debug(
@@ -126,9 +131,9 @@ async def call_litellm_openai_chat_completions(
             **payload, api_key=api_key_to_use, no_logs=True
         )
         if not request_data.stream:
-            return _process_non_stream_response(response)
+            return _process_non_stream_response(response), final_target_model
         else:
-            return _process_stream_response(response)
+            return _process_stream_response(response), final_target_model
     except litellm.exceptions.APIError as e:
         logger.error(
             f"LiteLLM APIError: Status Code: {e.status_code}, Message: {e.message}, LLM Provider: {getattr(e, 'llm_provider', 'N/A')}",
