@@ -17,22 +17,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
-    ANTHROPIC_MODELS_INFO: Dict[str, AnthropicModelInfo] = Field(
-        default_factory=lambda: {
-            "anthropic/claude-3-opus": AnthropicModelInfo(
-                description="Anthropic's most powerful model, for highly complex tasks."
-            ),
-            "anthropic/claude-3.5-sonnet": AnthropicModelInfo(
-                description="Anthropic's latest balanced model, excelling at intelligence and speed."
-            ),
-            "anthropic/claude-3-sonnet": AnthropicModelInfo(
-                description="Anthropic's balanced model for intelligence and speed (previous generation to 3.5)."
-            ),
-            "anthropic/claude-3-haiku": AnthropicModelInfo(
-                description="Anthropic's fastest and most compact model for near-instant responsiveness."
-            ),
-        }
-    )
+    
 
     ANTHROPIC_TO_OPENAI_MAP: Dict[str, str] = Field(
         default_factory=lambda: {
@@ -68,6 +53,14 @@ class Settings(BaseSettings):
         ]
     )
     MODEL_MAP_LAST_UPDATED: str = "2025-05-27"
+
+    # OpenTelemetry Settings
+    OTEL_SERVICE_NAME: str = "claude-code-proxy"
+    OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = None
+    OTEL_EXPORTER_OTLP_PROTOCOL: str = "grpc" # or "http/protobuf"
+    OTEL_EXPORTER_OTLP_HEADERS: Optional[str] = None # e.g., "key1=value1,key2=value2"
+    OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: bool = True
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

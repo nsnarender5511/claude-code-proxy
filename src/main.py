@@ -3,6 +3,7 @@ from src.core.logging_setup import setup_logging # Updated import
 from src.api.v1.endpoints import messages as messages_v1 # Updated import
 from src.api.v1.endpoints import health as health_v1   # Updated import
 from src.core.config import settings # Updated import
+from src.core.opentelemetry_setup import setup_opentelemetry # New import
 from loguru import logger
 
 # Initialize logging
@@ -13,6 +14,13 @@ app = FastAPI(
     version='1.1.0',
     description="Translates Anthropic SDK requests to LiteLLM's OpenAI-compatible endpoint.",
 )
+
+# Initialize OpenTelemetry BEFORE other middleware and routers if they need to be traced
+# or if OTEL should instrument them.
+setup_opentelemetry(app)
+
+# Enable LiteLLM's OpenTelemetry callback
+
 
 
 @app.middleware('http')
