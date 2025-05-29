@@ -111,12 +111,14 @@ class AnthropicMessagesResponse(BaseModel):
     model: str
     content: List[Union[AnthropicContentBlockText, AnthropicContentBlockToolUse]]
     stop_reason: Optional[
-        Literal["end_turn", "max_tokens", "stop_sequence", "tool_use", "content_filtered"]
+        Literal[
+            "end_turn", "max_tokens", "stop_sequence", "tool_use", "content_filtered"
+        ]
     ] = None
     stop_sequence: Optional[str] = None
     usage: AnthropicUsage
 
-# SSE Models
+
 class AnthropicSSEMessageStart(BaseModel):
     type: Literal["message_start"]
     message: AnthropicMessagesResponse
@@ -160,4 +162,4 @@ class AnthropicSSEErrorContent(BaseModel):
 
 class AnthropicSSEError(BaseModel):
     type: Literal["error"]
-    error: AnthropicSSEErrorContent 
+    error: AnthropicSSEErrorContent

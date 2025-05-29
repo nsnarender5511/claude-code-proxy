@@ -1,78 +1,70 @@
 import sys
-from loguru import logger
-from src.core.config import settings
 import logging
+from src.core.config import settings
+
+# ANSI escape codes for colors
+COLORS = {
+    "WARNING": "\\033[93m",  # Yellow
+    "INFO": "\\033[92m",  # Green
+    "DEBUG": "\\033[94m",  # Blue
+    "CRITICAL": "\\033[91m",  # Red
+    "ERROR": "\\033[91m",  # Red
+    "RESET": "\\033[0m",  # Reset color
+}
+
+SEPARATOR = " | "
+
+
+class ColorizedFormatter(logging.Formatter):
+    def __init__(self, fmt, datefmt=None, style="%", validate=True):
+        super().__init__(fmt, datefmt, style, validate)
+
+    def format(self, record):
+        log_message = super().format(record)
+        level_color = COLORS.get(record.levelname, COLORS["RESET"])
+        return f"{level_color}{log_message}{COLORS['RESET']}"
+
 
 class InterceptHandler(logging.Handler):
-    def emit(self, record):
-        # Only allow logs from the 'src' namespace to be processed by Loguru.
-        # All other logs (e.g., 'litellm', 'some_other_library') will be dropped here.
-        if not record.name.startswith('src'):
-            return # Suppress the log
+    def emit(self, record: logging.LogRecord):
+        logger = logging.getLogger("src")
+        level = record.levelno
+        original_logger = logging.getLogger(record.name)
+        if not record.name.startswith("src"):
+            fn, lno, func, sinfo = ("(unknown file)", 0, "(unknown function)", None)
+            if record.exc_info:
+                sinfo = record.stack_info
+            effective_logger = logging.getLogger("src.intercepted." + record.name)
+            effectiv
 
-        # Get corresponding Loguru level if it exists
-        try:
-            level = logger.level(record.levelname).name
-        except ValueError:
-            level = record.levelno
 
-        # Find caller from where originated the logged message
-        frame, depth = logging.currentframe(), 2
-        while frame.f_code.co_filename == logging.__file__:
-            frame = frame.f_back
-            depth += 1
+class SrcFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.name.startswith("src")
 
-        logger.opt(depth=depth, exception=record.exc_info).log(
-            level, record.getMessage()
-        )
 
 def setup_logging():
     log_level_str = settings.LOG_LEVEL.upper()
-    # Ensure log_level_str is a valid Loguru level, default to INFO
-    valid_loguru_levels = ["TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"]
-    if log_level_str not in valid_loguru_levels:
-        logger.warning(f"Invalid LOG_LEVEL '{log_level_str}' in settings, defaulting to INFO.")
-        log_level_str = "INFO"
+    numeric_log_level = getattr(logging, log_level_str, logging.INFO)
+    src_logger = logging.getLogger("src")
+    src_logger.setLevel(numeric_log_level)
+    for handler in src_logger.handlers[:]:
+        src_logger.removeHandler(handler)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(numeric_log_level)
 
-    logger.remove() # Remove default handler
-    logger.add(
-        sys.stdout,
-        level=log_level_str,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-        colorize=True,
+    # Updated format string with more separators
+    format_string = f"%(asctime)s{SEPARATOR}%(levelname)-8s{SEPARATOR}%(name)s:%(funcName)s:%(lineno)d{SEPARATOR}- %(message)s"
+    formatter = ColorizedFormatter(format_string, datefmt="%Y-%m-%d %H:%M:%S")
+
+    console_handler.setFormatter(formatter)
+    console_handler.addFilter(SrcFilter())
+    src_logger.addHandler(console_handler)
+    src_logger.propagate = False
+    src_logger.info(
+        f"Logging setup for 'src' namespace complete. Log level: {log_level_str}"
     )
-
-    logger.info(f"Log level set to: {log_level_str}")
-
-    # Intercept standard logging
-    logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
-    logger.info("Standard logging intercepted and redirected to Loguru.")
-
-    # Attempt to control LiteLLM's logger level
-    logger.info("Attempting to forcefully disable all loggers starting with 'litellm'.")
-    for logger_name in logging.Logger.manager.loggerDict:
-        if logger_name.startswith('litellm'):
-            current_logger = logging.getLogger(logger_name)
-            current_logger.setLevel(logging.CRITICAL)
-            for handler in list(current_logger.handlers): # Iterate over a copy
-                current_logger.removeHandler(handler)
-            current_logger.propagate = False # Stop it from propagating to root logger
-            logger.debug(f"Disabled logger '{logger_name}' by setting level to CRITICAL, removing handlers, and disabling propagation.")
-
-    # Also set the root 'litellm' logger just in case it's used directly or new sub-loggers are created later
-    litellm_root_logger = logging.getLogger("litellm")
-    litellm_root_logger.setLevel(logging.CRITICAL) # Set to highest level
-    # Remove any existing handlers
-    for handler in list(litellm_root_logger.handlers):
-        litellm_root_logger.removeHandler(handler)
-    # Add a NullHandler to prevent messages from reaching the root logger's handlers
-    # or logging.lastResort if propagate is True for some reason on a child.
-    litellm_root_logger.addHandler(logging.NullHandler())
-    litellm_root_logger.propagate = False # Explicitly stop propagation
-    logger.info(f"Forcefully disabled root 'litellm' logger by setting level to CRITICAL, removing other handlers, adding NullHandler, and disabling propagation.")
-
-    # The loop for disabling other third-party library logs is removed,
-    # as InterceptHandler now handles this dynamically.
-    logger.info("Third-party log filtering is now handled by InterceptHandler.")
-
-    return logger # Return the configured logger for convenience if needed 
+    logging.getLogger("litellm").setLevel(logging.WARNING)
+    litellm_logger = logging.getLogger("litellm")
+    litellm_logger.setLevel(logging.ERROR)
+    src_logger.info("Standard logging for 'litellm' set to ERROR.")

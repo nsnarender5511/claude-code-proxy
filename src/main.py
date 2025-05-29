@@ -1,47 +1,41 @@
 from fastapi import FastAPI, Request
-from src.core.logging_setup import setup_logging # Updated import
-from src.api.v1.endpoints import messages as messages_v1 # Updated import
-from src.api.v1.endpoints import health as health_v1   # Updated import
-from src.core.config import settings # Updated import
-from src.core.opentelemetry_setup import setup_opentelemetry # New import
-from loguru import logger
+import logging
+from src.core.logging_setup import setup_logging
+from src.api.v1.endpoints import messages as messages_v1
+from src.api.v1.endpoints import health as health_v1
+from src.core.config import settings
+from src.core.opentelemetry_setup import setup_opentelemetry
 
-# Initialize logging
+logger = logging.getLogger(__name__)
 setup_logging()
-
 app = FastAPI(
-    title='Anthropic SDK Facade for LiteLLM',
-    version='1.1.0',
+    title="Anthropic SDK Facade for LiteLLM",
+    version="1.1.0",
     description="Translates Anthropic SDK requests to LiteLLM's OpenAI-compatible endpoint.",
 )
 
-# Initialize OpenTelemetry BEFORE other middleware and routers if they need to be traced
-# or if OTEL should instrument them.
-setup_opentelemetry(app)
 
-# Enable LiteLLM's OpenTelemetry callback
-
-
-
-@app.middleware('http')
+@app.middleware("http")
 async def log_requests_middleware(request: Request, call_next):
-    logger.debug(f'Incoming request: {request.method} {request.url.path}')
+    logger.debug(f"Incoming request: {request.method} {request.url.path}")
     response = await call_next(request)
-    logger.debug(f'Outgoing response: {response.status_code}')
+    logger.debug(f"Outgoing response: {response.status_code}")
     return response
 
-# Include v1 routers
-app.include_router(messages_v1.router, prefix='/v1')
-app.include_router(health_v1.router, prefix='/v1') # Typically health might be at / or /health, adjust if needed
+
+app.include_router(messages_v1.router, prefix="/v1")
+app.include_router(health_v1.router, prefix="/v1")
 
 
-@app.get('/')
+@app.get("/")
 async def root():
-    return {'message': 'Anthropic SDK Facade for LiteLLM is running.'}
+    return {"message": "Anthropic SDK Facade for LiteLLM is running."}
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import uvicorn
 
-    logger.info(f'Starting Uvicorn server on http://0.0.0.0:{settings.PORT}')
-    uvicorn.run(app, host='0.0.0.0', port=settings.PORT, log_level=settings.LOG_LEVEL.lower()) 
+    logger.info(f"Starting Uvicorn server on http://0.0.0.0:{settings.PORT}")
+    uvicorn.run(
+        app, host="0.0.0.0", port=settings.PORT, log_level=settings.LOG_LEVEL.lower()
+    )

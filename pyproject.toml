@@ -5,48 +5,37 @@ description = "Proxy that translates between Anthropic API and LiteLLM"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "fastapi[standard] (>=0.115.12,<0.116.0)",
+    "fastapi[standard]",
     "httpx",
     "pydantic",
-    "litellm[proxy,vertex-ai] (>=1.37.0,<2.0.0)",
+    "litellm[proxy,vertex-ai]",
     "python-dotenv",
     "pydantic-settings",
-    "uvicorn (>=0.34.2,<0.35.0)",
-    "black (>=25.1.0,<26.0.0)",
-    "loguru==0.7.2",
-    "opentelemetry-api>=1.22.0",
-    "opentelemetry-sdk>=1.22.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.22.0",
-    "opentelemetry-instrumentation-fastapi>=0.43b0",
-    "opentelemetry-instrumentation-logging>=0.43b0",
-    "opentelemetry-distro>=0.43b0",
-    "opentelemetry-instrumentation-httpx>=0.43b0",
-    "google-auth (>=2.40.2,<3.0.0)",
-    "google-cloud-core (>=2.4.3,<3.0.0)",
-    "google-auth-oauthlib (>=1.2.2,<2.0.0)",
+    "uvicorn",
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp-proto-grpc",
+    "opentelemetry-instrumentation-fastapi",
+    "opentelemetry-instrumentation-logging",
+    "opentelemetry-distro",
+    "opentelemetry-instrumentation-httpx",
+    "google-auth",
+    "google-cloud-core",
+    "google-auth-oauthlib",
+    "ruff (>=0.11.12,<0.12.0)",
 ]
 
-[tool.black]
-line-length = 100
-target-version = ["py310"]
-skip-string-normalization = true
-skip-magic-trailing-comma = true
-preview = true
+[tool.ruff]
+line-length = 88
+target-version = "py38"
 
-# [tool.poetry.dependencies]
-# python = "^3.10"
-# fastapi = "^0.104.1"
-# uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}
-# python-dotenv = "^1.0.0"
-# loguru = "^0.7.2"
-# litellm = "^1.14.13" # Assuming a version for litellm
-# pydantic-settings = "^2.1.0"
-# opentelemetry-api = "^1.22.0"
-# opentelemetry-sdk = "^1.22.0"
-# opentelemetry-exporter-otlp-proto-grpc = "^1.22.0"
-# opentelemetry-instrumentation-fastapi = "^0.43b0"
-# opentelemetry-instrumentation-logging = "^0.43b0"
-# opentelemetry-distro = "^0.43b0"
-# # Optional: opentelemetry-instrumentation-httpx = "^0.43b0"
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
-[tool.poetry.group.dev.dependencies]
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"]  # pycodestyle, pyflakes, isort
+ignore = []
+

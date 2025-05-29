@@ -2,6 +2,7 @@ import time
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional, Union, Literal
 
+
 class OpenAIMessageContentPartText(BaseModel):
     type: Literal["text"]
     text: str
@@ -79,7 +80,10 @@ class OpenAITool(BaseModel):
 
 OpenAIToolChoiceOption = Union[
     Literal["none", "auto"],
-    Dict[Literal["type", "function"], Union[Literal["function"], Dict[Literal["name"], str]]],
+    Dict[
+        Literal["type", "function"],
+        Union[Literal["function"], Dict[Literal["name"], str]],
+    ],
 ]
 
 
@@ -169,4 +173,4 @@ class OpenAIChatCompletionChunk(BaseModel):
     model: str
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
     system_fingerprint: Optional[str] = None
-    usage: Optional[OpenAICompletionUsage] = None 
+    usage: Optional[OpenAICompletionUsage] = None
